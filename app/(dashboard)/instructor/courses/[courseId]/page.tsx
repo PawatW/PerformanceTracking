@@ -9,7 +9,7 @@ import { AssignmentTypeBadge } from "@/components/assignment-type-badge";
 import { DeadlineBadge } from "@/components/deadline-badge";
 import { GradeBadge } from "@/components/grade-badge";
 import { scoreToGrade, calculateWeightedScore } from "@/lib/grade-utils";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, BarChart2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -56,12 +56,26 @@ export default async function CourseDetailPage({
           <h1 className="text-2xl font-bold">{course.title}</h1>
           <p className="text-sm text-muted-foreground">ภาคเรียน {course.semester}</p>
         </div>
-        <Button asChild>
-          <Link href={`/dashboard/instructor/courses/${course.id}/assignments/new`}>
-            <Plus className="h-4 w-4 mr-1" />
-            สร้างงานใหม่
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/dashboard/instructor/courses/${course.id}/analytics`}>
+              <BarChart2 className="h-4 w-4 mr-1" />
+              Analytics
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/dashboard/instructor/courses/${course.id}/report`}>
+              <FileText className="h-4 w-4 mr-1" />
+              รายงาน
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/dashboard/instructor/courses/${course.id}/assignments/new`}>
+              <Plus className="h-4 w-4 mr-1" />
+              สร้างงานใหม่
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="assignments">

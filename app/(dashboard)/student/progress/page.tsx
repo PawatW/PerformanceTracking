@@ -3,7 +3,9 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GradeBadge } from "@/components/grade-badge";
 import { ProgressCharts } from "@/components/progress-charts";
-import { calculateWeightedScore, scoreToGradeColor } from "@/lib/grade-utils";
+import { RadarByTypeChart } from "@/components/analytics-charts";
+import { calculateWeightedScore, scoreToGradeColor, scoreToGrade } from "@/lib/grade-utils";
+import { BookOpen, CheckCircle, XCircle, TrendingUp } from "lucide-react";
 
 const typeLabel: Record<string, string> = {
   HOMEWORK: "การบ้าน",
@@ -35,43 +37,50 @@ export default async function StudentProgressPage() {
     },
   });
 
-  // ─── Line chart data ────────────────────────────────────────────────────────
-  // All assignments with grades (mine or class), sorted by dueDate
-  const linePoints: {
-    label: string;
-    myScore: number | null;
-    classAvg: number | null;
-  }[] = [];
-
   const allAssignments = enrollments
     .flatMap((e) => e.course.assignments)
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
+  // ─── Personal stats ──────────────────────────────────────────────────────────
+  const totalAssignmentsAll = allAssignments.length;
+  const submittedAll = allAssignments.filter((a) =>
+    a.submissions.some((s) => s.studentId === user.id)
+  ).length;
+  const missingAll = totalAssignmentsAll - submittedAll;
+  const submitRate = totalAssignmentsAll > 0 ? (submittedAll / totalAssignmentsAll) * 100 : 0;
+
+  // Overall GPA-style weighted score across all courses
+  const allGradedItems = enrollments.flatMap(({ course }) =>
+    course.assignments.flatMap((a) =>
+      a.submissions
+        .filter((s) => s.studentId === user.id && s.grade)
+        .map((s) => ({ score: (s.grade!.score / a.maxScore) * 100, weight: a.weight }))
+    )
+  );
+  const overallScore = allGradedItems.length > 0 ? calculateWeightedScore(allGradedItems) : null;
+
+  // ─── Line chart data ─────────────────────────────────────────────────────────
+  const linePoints: { label: string; myScore: number | null; classAvg: number | null }[] = [];
+
   for (const a of allAssignments) {
     const mySub = a.submissions.find((s) => s.studentId === user.id && s.grade);
     const allGraded = a.submissions.filter((s) => s.grade);
-
     if (allGraded.length === 0) continue;
-
-    const myScore = mySub?.grade
-      ? Math.round(((mySub.grade.score / a.maxScore) * 100) * 10) / 10
-      : null;
-
-    const classAvg =
-      Math.round(
-        (allGraded.reduce((sum, s) => sum + (s.grade!.score / a.maxScore) * 100, 0) /
-          allGraded.length) *
-          10
-      ) / 10;
 
     linePoints.push({
       label: a.title.length > 12 ? a.title.slice(0, 12) + "…" : a.title,
-      myScore,
-      classAvg,
+      myScore: mySub?.grade
+        ? Math.round(((mySub.grade.score / a.maxScore) * 100) * 10) / 10
+        : null,
+      classAvg:
+        Math.round(
+          (allGraded.reduce((sum, s) => sum + (s.grade!.score / a.maxScore) * 100, 0) /
+            allGraded.length) * 10
+        ) / 10,
     });
   }
 
-  // ─── Bar chart data ─────────────────────────────────────────────────────────
+  // ─── Bar / Radar chart data ───────────────────────────────────────────────────
   const typeMap = new Map<string, { myTotal: number; myCount: number; classTotal: number; classCount: number }>();
 
   for (const a of allAssignments) {
@@ -96,23 +105,37 @@ export default async function StudentProgressPage() {
     classAvg: v.classCount > 0 ? Math.round((v.classTotal / v.classCount) * 10) / 10 : null,
   }));
 
-  // ─── Summary table per course ────────────────────────────────────────────────
+  const radarData = Array.from(typeMap.entries()).map(([type, v]) => ({
+    type: typeLabel[type] ?? type,
+    avg: v.myCount > 0 ? Math.round((v.myTotal / v.myCount) * 10) / 10 : 0,
+    fullMark: 100,
+  }));
+
+  // ─── Summary table per course ─────────────────────────────────────────────────
   const courseSummaries = enrollments.map(({ course }) => {
-    const totalAssignments = course.assignments.length;
+    const totalA = course.assignments.length;
     const submittedCount = course.assignments.filter((a) =>
       a.submissions.some((s) => s.studentId === user.id)
     ).length;
-    const remaining = totalAssignments - submittedCount;
+    const remaining = totalA - submittedCount;
 
     const gradedItems = course.assignments.flatMap((a) =>
       a.submissions
         .filter((s) => s.studentId === user.id && s.grade)
-        .map((s) => ({
-          score: (s.grade!.score / a.maxScore) * 100,
-          weight: a.weight,
-        }))
+        .map((s) => ({ score: (s.grade!.score / a.maxScore) * 100, weight: a.weight }))
     );
     const currentScore = gradedItems.length > 0 ? calculateWeightedScore(gradedItems) : null;
+
+    const totalWeight = course.assignments.reduce((s, a) => s + a.weight, 0);
+    const gradedWeight = course.assignments
+      .filter((a) => a.submissions.some((s) => s.studentId === user.id && s.grade))
+      .reduce((s, a) => s + a.weight, 0);
+    const remainingWeight = totalWeight - gradedWeight;
+
+    const neededForA =
+      remainingWeight > 0 && currentScore != null
+        ? ((80 * totalWeight - currentScore * gradedWeight) / remainingWeight)
+        : null;
 
     return {
       id: course.id,
@@ -121,8 +144,9 @@ export default async function StudentProgressPage() {
       instructor: course.instructor.name,
       currentScore,
       remaining,
-      totalAssignments,
+      totalAssignments: totalA,
       submittedCount,
+      neededForA,
     };
   });
 
@@ -133,14 +157,90 @@ export default async function StudentProgressPage() {
         <p className="text-sm text-muted-foreground mt-1">ติดตามผลการเรียนของคุณ</p>
       </div>
 
-      {/* Charts */}
+      {/* Personal stats cards */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-blue-500" />
+              <p className="text-xs text-muted-foreground">คะแนนรวมทุกวิชา</p>
+            </div>
+            {overallScore != null ? (
+              <>
+                <p className={`text-2xl font-bold ${scoreToGradeColor(overallScore)}`}>
+                  {overallScore.toFixed(1)}%
+                </p>
+                <p className={`text-sm font-semibold ${scoreToGradeColor(overallScore)}`}>
+                  {scoreToGrade(overallScore)}
+                </p>
+              </>
+            ) : (
+              <p className="text-xl font-bold text-muted-foreground">—</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <BookOpen className="h-4 w-4 text-purple-500" />
+              <p className="text-xs text-muted-foreground">วิชาที่ลงทะเบียน</p>
+            </div>
+            <p className="text-2xl font-bold">{enrollments.length}</p>
+            <p className="text-xs text-muted-foreground">วิชา</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <p className="text-xs text-muted-foreground">อัตราการส่งงาน</p>
+            </div>
+            <p className="text-2xl font-bold">{submitRate.toFixed(0)}%</p>
+            <p className="text-xs text-muted-foreground">
+              {submittedAll}/{totalAssignmentsAll} ชิ้น
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2 mb-1">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <p className="text-xs text-muted-foreground">ขาดส่ง</p>
+            </div>
+            <p className={`text-2xl font-bold ${missingAll > 0 ? "text-red-500" : "text-green-600"}`}>
+              {missingAll}
+            </p>
+            <p className="text-xs text-muted-foreground">ชิ้นงาน</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Line chart: score trend */}
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader>
+          <CardTitle className="text-base">แนวโน้มคะแนน</CardTitle>
+        </CardHeader>
+        <CardContent>
           <ProgressCharts lineData={linePoints} barData={barData} />
         </CardContent>
       </Card>
 
-      {/* Course summary table */}
+      {/* Radar chart by assignment type */}
+      {radarData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">คะแนนเฉลี่ยแยกตามประเภท</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RadarByTypeChart data={radarData} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Course summary table with "needed for A" */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">สรุปรายวิชา</CardTitle>
@@ -153,8 +253,10 @@ export default async function StudentProgressPage() {
                   <th className="pb-3 text-left font-medium">วิชา</th>
                   <th className="pb-3 text-center font-medium">ส่งงาน</th>
                   <th className="pb-3 text-center font-medium">คะแนนรวม</th>
-                  <th className="pb-3 text-center font-medium">เกรดที่ได้</th>
-                  <th className="pb-3 text-center font-medium">งานที่เหลือ</th>
+                  <th className="pb-3 text-center font-medium">เกรด</th>
+                  <th className="pb-3 text-center font-medium hidden sm:table-cell">
+                    คะแนนที่ต้องได้ (เกรด A)
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -185,10 +287,22 @@ export default async function StudentProgressPage() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </td>
-                    <td className="py-3 text-center">
-                      <span className={c.remaining > 0 ? "text-yellow-600 font-medium" : "text-green-600"}>
-                        {c.remaining}
-                      </span>
+                    <td className="py-3 text-center hidden sm:table-cell">
+                      {c.neededForA !== null ? (
+                        <span
+                          className={`font-medium ${
+                            c.neededForA > 100
+                              ? "text-destructive"
+                              : scoreToGradeColor(c.neededForA)
+                          }`}
+                        >
+                          {c.neededForA > 100
+                            ? "ไม่สามารถถึงได้"
+                            : `${c.neededForA.toFixed(1)}%`}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
