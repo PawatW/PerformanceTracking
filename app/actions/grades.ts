@@ -89,19 +89,29 @@ export async function saveGrade(submissionId: string, rawData: unknown): Promise
   return { success: true, data: { id: grade.id } };
 }
 
-export async function getNextSubmission(
-  assignmentId: string,
-  currentSubmissionId: string
-): Promise<string | null> {
+async function getOrderedSubmissions(assignmentId: string): Promise<{ id: string }[] | null> {
   const session = await auth();
-  if (!session?.user) return null;
+  if (!session?.user || session.user.role !== "INSTRUCTOR") return null;
 
-  const submissions = await prisma.submission.findMany({
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    include: { course: { select: { instructorId: true } } },
+  });
+  if (!assignment || assignment.course.instructorId !== session.user.id) return null;
+
+  return prisma.submission.findMany({
     where: { assignmentId },
     orderBy: { student: { name: "asc" } },
     select: { id: true },
   });
+}
 
+export async function getNextSubmission(
+  assignmentId: string,
+  currentSubmissionId: string
+): Promise<string | null> {
+  const submissions = await getOrderedSubmissions(assignmentId);
+  if (!submissions) return null;
   const idx = submissions.findIndex((s) => s.id === currentSubmissionId);
   if (idx === -1 || idx === submissions.length - 1) return null;
   return submissions[idx + 1].id;
@@ -111,15 +121,8 @@ export async function getPrevSubmission(
   assignmentId: string,
   currentSubmissionId: string
 ): Promise<string | null> {
-  const session = await auth();
-  if (!session?.user) return null;
-
-  const submissions = await prisma.submission.findMany({
-    where: { assignmentId },
-    orderBy: { student: { name: "asc" } },
-    select: { id: true },
-  });
-
+  const submissions = await getOrderedSubmissions(assignmentId);
+  if (!submissions) return null;
   const idx = submissions.findIndex((s) => s.id === currentSubmissionId);
   if (idx <= 0) return null;
   return submissions[idx - 1].id;

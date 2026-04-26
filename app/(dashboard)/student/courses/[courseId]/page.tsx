@@ -164,6 +164,13 @@ export default async function StudentCourseDetailPage({
                 </tr>
               </thead>
               <tbody className="divide-y">
+                {course.assignments.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                      ยังไม่มีงานที่มอบหมายในวิชานี้
+                    </td>
+                  </tr>
+                )}
                 {course.assignments.map((a) => {
                   const sub = a.submissions[0];
                   const status = getAssignmentStatus(a);

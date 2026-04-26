@@ -25,7 +25,7 @@ export async function submitAssignment(
   if (session.user.role !== "STUDENT") return { success: false, error: "ไม่มีสิทธิ์" };
 
   const parsed = submitSchema.safeParse(rawData);
-  if (!parsed.success) return { success: false, error: parsed.data ?? parsed.error.errors[0].message };
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
