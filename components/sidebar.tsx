@@ -9,7 +9,6 @@ import {
   BarChart3,
   GraduationCap,
   TrendingUp,
-  Bell,
   LogOut,
   X,
   BookMarked,
@@ -17,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface NavItem {
   href: string;
@@ -95,21 +95,10 @@ export function Sidebar({ role, userName, userEmail, unreadCount, onClose }: Sid
 
       {/* Bottom: notifications + user */}
       <div className="p-3 space-y-2">
-        <Link
-          href="/dashboard/notifications"
-          onClick={onClose}
-          className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          <span className="flex items-center gap-3">
-            <Bell className="h-4 w-4" />
-            การแจ้งเตือน
-          </span>
-          {unreadCount > 0 && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center justify-between rounded-md px-3 py-2">
+          <span className="text-sm font-medium text-muted-foreground">การแจ้งเตือน</span>
+          <NotificationBell initialUnreadCount={unreadCount} />
+        </div>
 
         <div className="rounded-md px-3 py-2">
           <p className="text-sm font-medium truncate">{userName}</p>
