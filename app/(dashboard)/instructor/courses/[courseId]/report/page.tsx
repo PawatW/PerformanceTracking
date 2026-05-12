@@ -119,8 +119,8 @@ export default async function CourseReportPage({
           {[
             { label: "นักศึกษาทั้งหมด", value: `${studentRows.length} คน` },
             { label: "คะแนนเฉลี่ย", value: `${stats.mean.toFixed(2)}%` },
-            { label: "สูงสุด / ต่ำสุด", value: `${stats.max.toFixed(1)} / ${stats.min.toFixed(1)}` },
-            { label: "SD", value: stats.sd.toFixed(2) },
+            { label: "สูงสุด / ต่ำสุด", value: `${stats.highest.toFixed(1)} / ${stats.lowest.toFixed(1)}` },
+            { label: "SD", value: stats.stdDev.toFixed(2) },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="pt-4 pb-3">

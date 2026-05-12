@@ -167,9 +167,9 @@ export default async function CourseAnalyticsPage({
           <CardContent className="pt-5">
             <p className="text-xs text-muted-foreground mb-1">สูงสุด / ต่ำสุด</p>
             <p className="text-2xl font-bold">
-              <span className="text-green-600">{stats ? stats.max.toFixed(0) : "—"}</span>
+              <span className="text-green-600">{stats ? stats.highest.toFixed(0) : "—"}</span>
               <span className="text-muted-foreground text-sm font-normal"> / </span>
-              <span className="text-red-500">{stats ? stats.min.toFixed(0) : "—"}</span>
+              <span className="text-red-500">{stats ? stats.lowest.toFixed(0) : "—"}</span>
             </p>
             <p className="text-xs text-muted-foreground">%</p>
           </CardContent>
