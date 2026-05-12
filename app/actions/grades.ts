@@ -2,8 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+
+type SubmissionWithIncludes = Prisma.SubmissionGetPayload<{
+  include: {
+    assignment: { include: { course: true } };
+    student: true;
+  };
+}>;
 
 const gradeSchema = z.object({
   rubricScores: z.record(z.string(), z.number().nonnegative()),
@@ -20,7 +28,7 @@ type ActionResult<T = undefined> =
 
 async function getInstructorForSubmission(submissionId: string): Promise<
   | { ok: false; error: string }
-  | { ok: true; submission: NonNullable<Awaited<ReturnType<typeof prisma.submission.findUnique>>>; userId: string }
+  | { ok: true; submission: SubmissionWithIncludes; userId: string }
 > {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "ไม่ได้เข้าสู่ระบบ" };
