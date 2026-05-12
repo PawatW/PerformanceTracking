@@ -9,12 +9,12 @@ import { format } from "date-fns";
 export default async function EditAssignmentPage({
   params,
 }: {
-  params: { id: string };
+  params: { assignmentId: string };
 }) {
   const user = await requireRole("INSTRUCTOR");
 
   const assignment = await prisma.assignment.findUnique({
-    where: { id: params.id },
+    where: { id: params.assignmentId },
     include: {
       rubrics: { orderBy: { order: "asc" } },
       course: {
@@ -73,7 +73,7 @@ export default async function EditAssignmentPage({
         submitLabel="บันทึกการเปลี่ยนแปลง"
         onSubmit={async (data) => {
           "use server";
-          return updateAssignment(params.id, data);
+          return updateAssignment(params.assignmentId, data);
         }}
       />
     </div>
