@@ -18,10 +18,13 @@ type ActionResult<T = undefined> =
   | { success: true; data?: T }
   | { success: false; error: string };
 
-async function getInstructorForSubmission(submissionId: string) {
+async function getInstructorForSubmission(submissionId: string): Promise<
+  | { ok: false; error: string }
+  | { ok: true; submission: NonNullable<Awaited<ReturnType<typeof prisma.submission.findUnique>>>; userId: string }
+> {
   const session = await auth();
-  if (!session?.user) return { error: "ไม่ได้เข้าสู่ระบบ" } as const;
-  if (session.user.role !== "INSTRUCTOR") return { error: "ไม่มีสิทธิ์" } as const;
+  if (!session?.user?.id) return { ok: false, error: "ไม่ได้เข้าสู่ระบบ" };
+  if (session.user.role !== "INSTRUCTOR") return { ok: false, error: "ไม่มีสิทธิ์" };
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -31,16 +34,16 @@ async function getInstructorForSubmission(submissionId: string) {
     },
   });
 
-  if (!submission) return { error: "ไม่พบงานที่ส่ง" } as const;
+  if (!submission) return { ok: false, error: "ไม่พบงานที่ส่ง" };
   if (submission.assignment.course.instructorId !== session.user.id)
-    return { error: "ไม่มีสิทธิ์ตรวจงานนี้" } as const;
+    return { ok: false, error: "ไม่มีสิทธิ์ตรวจงานนี้" };
 
-  return { submission, userId: session.user.id };
+  return { ok: true, submission, userId: session.user.id };
 }
 
 export async function saveGrade(submissionId: string, rawData: unknown): Promise<ActionResult<{ id: string }>> {
   const auth = await getInstructorForSubmission(submissionId);
-  if ("error" in auth) return { success: false, error: auth.error };
+  if (!auth.ok) return { success: false, error: auth.error };
 
   const parsed = gradeSchema.safeParse(rawData);
   if (!parsed.success) return { success: false, error: parsed.error.errors[0].message };
