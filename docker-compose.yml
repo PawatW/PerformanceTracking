@@ -25,6 +25,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/performance_tracking
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      AUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production}
+      AUTH_TRUST_HOST: "true"
       NODE_ENV: production
     depends_on:
       db:
