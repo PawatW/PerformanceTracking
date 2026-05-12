@@ -617,7 +617,7 @@ async function main() {
             score: totalScore,
             instructorNote: instructorNote(profile),
             privateNote: privateNoteFor(profile),
-            rubricScores: rubricScores ?? null,
+            rubricScores: rubricScores ?? undefined,
           },
         });
       }

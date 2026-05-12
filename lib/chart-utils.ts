@@ -8,7 +8,8 @@ export function getScoreDistribution(
   }));
 
   for (const s of scores) {
-    const idx = Math.min(9, Math.floor(Math.clamp ? Math.min(100, Math.max(0, s)) / 10 : Math.min(100, Math.max(0, s)) / 10));
+    const clamped = Math.min(100, Math.max(0, s));
+    const idx = Math.min(9, Math.floor(clamped / 10));
     buckets[idx].count++;
   }
 
