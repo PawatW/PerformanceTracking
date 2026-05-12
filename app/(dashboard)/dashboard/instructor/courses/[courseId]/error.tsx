@@ -1,0 +1,42 @@
+"use client";
+
+import { useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+
+export default function CourseError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <div className="rounded-full bg-destructive/10 p-4 mb-4">
+        <AlertTriangle className="h-8 w-8 text-destructive" />
+      </div>
+      <h2 className="text-xl font-bold mb-2">โหลดข้อมูลวิชาไม่ได้</h2>
+      <p className="text-muted-foreground text-sm mb-6 max-w-sm">
+        เกิดข้อผิดพลาดในการโหลดข้อมูล กรุณาลองใหม่หรือกลับไปหน้ารายวิชา
+      </p>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={reset} className="gap-2">
+          <RotateCcw className="h-4 w-4" />
+          ลองใหม่
+        </Button>
+        <Button asChild variant="ghost" className="gap-2">
+          <Link href="/dashboard/instructor/courses">
+            <ArrowLeft className="h-4 w-4" />
+            รายวิชา
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
